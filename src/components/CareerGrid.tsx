@@ -59,7 +59,7 @@ export function CareerGrid({ state, current }: { state: CareerState; current?: b
                     <td>{season.stats.apps}</td>
                     <td>{season.stats.goals}</td>
                     <td>{season.stats.assists}</td>
-                    <td>{season.stats.rating.toFixed(2)}</td>
+                    <td>{season.stats.apps > 0 ? season.stats.rating.toFixed(2) : t('common.none')}</td>
                     <td>{ordinal(season.leaguePosition, locale)}</td>
                   </>
                 ) : (

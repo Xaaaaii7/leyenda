@@ -103,7 +103,7 @@ export function SeasonSummary({
           <Stat name={t('stat.goals')} value={record.stats.goals} />
         )}
         <Stat name={t('stat.assists')} value={record.stats.assists} />
-        <Stat name={t('stat.rating')} value={record.stats.rating.toFixed(2)} />
+        <Stat name={t('stat.rating')} value={record.stats.apps > 0 ? record.stats.rating.toFixed(2) : t('common.none')} />
       </div>
 
       <div className="divider" />
