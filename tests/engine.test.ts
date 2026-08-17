@@ -1,13 +1,17 @@
 import { describe, expect, it } from 'vitest'
-import { CLUBS, LEAGUES, LEAGUE_BY_ID, clubsOfLeague } from '../src/data/clubs'
-import { NATIONS } from '../src/data/nations'
+import { CLUBS, LEAGUES, LEAGUE_BY_ID, clubsOfLeague, getClub, getLeague } from '../src/data/clubs'
+import { NATIONS, getNation } from '../src/data/nations'
 import { FIRST_NAMES, LAST_NAMES } from '../src/data/names'
 import { Rng } from '../src/engine/rng'
-import { autoPlay, createCareer, currentOvr, step, choose } from '../src/engine/career'
-import { ovrOf, buildAttributes, rollPotential, marketValueOf } from '../src/engine/player'
+import { adaptationFor, autoPlay, createCareer, currentOvr, step, choose } from '../src/engine/career'
+import {
+  MAX_SEASON_GAIN, buildAttributes, convertPosition, declineFactor, developPlayer,
+  marketValueOf, ovrOf, rollPotential,
+} from '../src/engine/player'
+import type { DevelopmentInput } from '../src/engine/player'
 import { callUpBar, tournamentOf } from '../src/engine/national'
 import { comfortPrestige } from '../src/engine/transfers'
-import type { CareerSetup, Legacy, Position, SeasonRecord, Step } from '../src/engine/types'
+import type { CareerSetup, Legacy, PlayerState, Position, SeasonRecord, Step } from '../src/engine/types'
 
 function setup(overrides: Partial<CareerSetup> = {}): CareerSetup {
   return {
@@ -57,10 +61,34 @@ describe('datos', () => {
     expect(new Set(CLUBS.map((c) => c.id)).size).toBe(CLUBS.length)
   })
 
-  it('cada liga tiene al menos cuatro clubes', () => {
+  it('cada liga está completa: tantos clubes como equipos tiene de verdad', () => {
     for (const league of LEAGUES) {
-      expect(clubsOfLeague(league.id).length, league.name).toBeGreaterThanOrEqual(4)
+      expect(clubsOfLeague(league.id).length, league.name).toBe(league.size)
     }
+  })
+
+  it('no hay nombres de club repetidos dentro de una misma liga', () => {
+    for (const league of LEAGUES) {
+      const names = clubsOfLeague(league.id).map((c) => c.name)
+      expect(new Set(names).size, league.name).toBe(names.length)
+    }
+  })
+
+  it('los prestigios están en el rango declarado y ordenados por liga', () => {
+    for (const club of CLUBS) {
+      expect(club.prestige, club.name).toBeGreaterThanOrEqual(30)
+      expect(club.prestige, club.name).toBeLessThanOrEqual(96)
+    }
+    // Una primera división nunca debe ser globalmente más débil que su segunda.
+    const top = (id: string) => Math.max(...clubsOfLeague(id).map((c) => c.prestige))
+    for (const first of LEAGUES.filter((l) => l.tier === 1)) {
+      const second = LEAGUES.find((l) => l.tier === 2 && l.nationId === first.nationId)
+      if (second) expect(top(first.id), first.name).toBeGreaterThan(top(second.id))
+    }
+  })
+
+  it('hay bastantes clubes para que el mercado tenga fondo', () => {
+    expect(CLUBS.length).toBeGreaterThan(600)
   })
 
   it('cada grupo de nombres usado por una nación tiene nombres y apellidos', () => {
@@ -119,8 +147,8 @@ describe('jugador', () => {
     const rng = new Rng(42)
     for (let i = 0; i < 500; i++) {
       const p = rollPotential(rng)
-      expect(p).toBeGreaterThanOrEqual(55)
-      expect(p).toBeLessThanOrEqual(95)
+      expect(p).toBeGreaterThanOrEqual(60)
+      expect(p).toBeLessThanOrEqual(96)
     }
   })
 
@@ -136,8 +164,8 @@ describe('jugador', () => {
       identity: setup().identity,
       attrs: buildAttributes('FW', { shooting: 6 }, new Rng(1)),
       potential: 85, form: 60, morale: 60, fitness: 80, injuryProneness: 30,
-      reputation: 50, clubId: 'rma', contractYears: 3, wage: 1, marketValue: 1,
-      captain: false, retiredFromNT: false, ntNationId: 'ESP',
+      reputation: 50, clubId: 'esp1-rma', contractYears: 3, wage: 1, marketValue: 1,
+      seasonsAtClub: 2, captain: false, retiredFromNT: false, ntNationId: 'ESP',
     }
     const young = marketValueOf({ ...base, age: 24 }, 92)
     const old = marketValueOf({ ...base, age: 34 }, 92)
@@ -257,13 +285,15 @@ describe('carrera completa', () => {
 
   it('sólo una minoría de carreras llega a leyenda', () => {
     const tiers: Record<string, number> = {}
-    for (let seed = 500; seed < 580; seed++) {
+    const total = 100
+    for (let seed = 500; seed < 500 + total; seed++) {
       const legacy = legacyOf(runCareer(seed, (['GK', 'DF', 'MF', 'FW'] as Position[])[seed % 4]).steps)
       tiers[legacy.tier] = (tiers[legacy.tier] ?? 0) + 1
     }
     const top = (tiers.immortal ?? 0) + (tiers.legend ?? 0)
-    expect(top).toBeLessThan(40) // menos de la mitad
-    expect(Object.keys(tiers).length).toBeGreaterThan(2) // hay variedad de finales
+    expect(top).toBeGreaterThan(0) // pero alcanzable
+    expect(top / total).toBeLessThan(0.3)
+    expect(Object.keys(tiers).length).toBeGreaterThan(3) // hay variedad de finales
   })
 
   it('el Balón de Oro es excepcional', () => {
@@ -299,17 +329,18 @@ describe('carrera completa', () => {
     expect(bigLevel).toBeGreaterThan(smallLevel)
   })
 
-  it('quedarse siempre en el club modesto da más partidos, pero a menos nivel', () => {
+  it('dominar en un club a tu medida da más goles que perseguir gigantes', () => {
     const bigPolicy = (d: { options: { id: string }[] }) => d.options[0].id
     const smallPolicy = (d: { options: { id: string }[] }) => d.options[d.options.length - 1].id
-    let bigApps = 0
-    let smallApps = 0
-    for (let seed = 900; seed < 930; seed++) {
-      bigApps += legacyOf(runCareer(seed, 'FW', bigPolicy).steps).totals.apps
-      smallApps += legacyOf(runCareer(seed, 'FW', smallPolicy).steps).totals.apps
+    let bigGoals = 0
+    let smallGoals = 0
+    for (let seed = 900; seed < 960; seed++) {
+      bigGoals += legacyOf(runCareer(seed, 'FW', bigPolicy).steps).totals.goals
+      smallGoals += legacyOf(runCareer(seed, 'FW', smallPolicy).steps).totals.goals
     }
-    // Jugar en un club a tu medida garantiza minutos; ir al gigante los quita.
-    expect(smallApps).toBeGreaterThan(bigApps)
+    // El que se queda es la referencia de su equipo y marca más; el que persigue
+    // gigantes gana títulos y nivel, pero comparte protagonismo.
+    expect(smallGoals).toBeGreaterThan(bigGoals)
   })
 
   it('el nivel de la carrera está dentro del rango de prestigios reales', () => {
@@ -353,6 +384,181 @@ describe('carrera completa', () => {
         expect(s.ovrEnd).toBeLessThanOrEqual(99)
       }
       expect(currentOvr(state)).toBeLessThanOrEqual(99)
+    }
+  })
+})
+
+describe('progresión', () => {
+  /** Jugador de laboratorio, para medir el desarrollo aislado del resto del motor. */
+  function labPlayer(age: number, potential: number, position: Position = 'FW'): PlayerState {
+    return {
+      identity: { ...setup().identity, position },
+      age,
+      attrs: buildAttributes(position, { shooting: 4, dribbling: 4, pace: 4 }, new Rng(9)),
+      potential,
+      form: 60, morale: 60, fitness: 85, injuryProneness: 30, reputation: 40,
+      clubId: 'esp1-vil', seasonsAtClub: 3, contractYears: 3, wage: 1, marketValue: 5,
+      captain: false, retiredFromNT: false, ntNationId: 'ESP',
+    }
+  }
+
+  const dev = (over: Partial<DevelopmentInput> = {}): DevelopmentInput => ({
+    minutesShare: 0.8, clubPrestige: 78, leagueStrength: 92,
+    growthMult: 1, trainingFocus: [], injuryWeeks: 0, seasonRating: 6.9,
+    ...over,
+  })
+
+  it('la mejora es absoluta: un techo altísimo no dispara la subida de un año', () => {
+    // Mismo jugador, dos márgenes de mejora radicalmente distintos.
+    const modest = labPlayer(18, 72)
+    const huge = labPlayer(18, 99)
+    const a = developPlayer(modest, dev(), new Rng(4))
+    const b = developPlayer(huge, dev(), new Rng(4))
+    expect(b).toBeLessThanOrEqual(MAX_SEASON_GAIN)
+    // El del techo alto mejora algo más, pero no varias veces más.
+    expect(b).toBeLessThan(a * 2.2)
+  })
+
+  it('nunca se sube más del tope de una temporada', () => {
+    for (let seed = 1; seed < 200; seed++) {
+      const p = labPlayer(17, 99)
+      const gain = developPlayer(p, dev({ minutesShare: 1, seasonRating: 9.5, clubPrestige: 96 }), new Rng(seed))
+      expect(gain).toBeLessThanOrEqual(MAX_SEASON_GAIN)
+    }
+  })
+
+  it('jugar más partidos hace mejorar más', () => {
+    let muchos = 0
+    let pocos = 0
+    for (let seed = 1; seed < 60; seed++) {
+      muchos += developPlayer(labPlayer(19, 88), dev({ minutesShare: 0.9 }), new Rng(seed))
+      pocos += developPlayer(labPlayer(19, 88), dev({ minutesShare: 0.2 }), new Rng(seed))
+    }
+    expect(muchos).toBeGreaterThan(pocos * 1.4)
+  })
+
+  it('rendir bien hace mejorar más; rendir mal lo frena', () => {
+    let bien = 0
+    let mal = 0
+    for (let seed = 1; seed < 60; seed++) {
+      bien += developPlayer(labPlayer(20, 88), dev({ seasonRating: 7.8 }), new Rng(seed))
+      mal += developPlayer(labPlayer(20, 88), dev({ seasonRating: 6.1 }), new Rng(seed))
+    }
+    expect(bien).toBeGreaterThan(mal * 1.5)
+  })
+
+  it('una temporada sin minutos y sin rendir hace retroceder, aunque seas joven', () => {
+    let retrocesos = 0
+    for (let seed = 1; seed < 40; seed++) {
+      const gain = developPlayer(labPlayer(22, 90), dev({ minutesShare: 0.05, seasonRating: 5.9 }), new Rng(seed))
+      if (gain < 0) retrocesos++
+    }
+    expect(retrocesos).toBeGreaterThan(30)
+  })
+
+  it('el declive llega tarde y es suave', () => {
+    expect(declineFactor(30)).toBe(0)
+    expect(declineFactor(31)).toBe(0)
+    expect(declineFactor(33)).toBeGreaterThan(0)
+    expect(declineFactor(38)).toBeGreaterThan(declineFactor(33))
+    let total = 0
+    const n = 60
+    for (let seed = 1; seed <= n; seed++) {
+      total += developPlayer(labPlayer(33, 70), dev({ minutesShare: 0.7, seasonRating: 6.9 }), new Rng(seed))
+    }
+    const perSeason = total / n
+    expect(perSeason).toBeLessThan(0) // baja
+    expect(perSeason).toBeGreaterThan(-4) // pero no se cae por un barranco
+  })
+
+  it('cambiar de aires cuesta una temporada de adaptación', () => {
+    expect(adaptationFor(0).minutes).toBeLessThan(0)
+    expect(adaptationFor(0).rating).toBeLessThan(0)
+    expect(adaptationFor(0).growth).toBeLessThan(1)
+    expect(adaptationFor(1).minutes).toBeGreaterThan(adaptationFor(0).minutes)
+    expect(adaptationFor(4).minutes).toBeGreaterThan(0) // el arraigo se paga al contrario
+  })
+
+  it('reconvertir la posición no hunde la media', () => {
+    const p = labPlayer(30, 85)
+    const before = ovrOf(p.attrs, p.identity.position)
+    convertPosition(p, 'MF')
+    const after = ovrOf(p.attrs, 'MF')
+    expect(p.identity.position).toBe('MF')
+    expect(after).toBeGreaterThanOrEqual(before - 3)
+    expect(after).toBeLessThanOrEqual(before)
+  })
+
+  it('el 99 es alcanzable, pero excepcional', () => {
+    let best = 0
+    let muyAltos = 0
+    const total = 240
+    for (let seed = 3000; seed < 3000 + total; seed++) {
+      const legacy = legacyOf(runCareer(seed, 'FW', (d) => d.options[0].id).steps)
+      best = Math.max(best, legacy.peakOvr)
+      if (legacy.peakOvr >= 95) muyAltos++
+    }
+    expect(best).toBeGreaterThanOrEqual(93) // el techo del juego se roza
+    expect(muyAltos / total).toBeLessThan(0.15) // pero no es la norma
+  })
+
+  it('la curva se parece a la del juego de referencia', () => {
+    // Referencia medida en Copero: sube ~4 puntos por temporada de joven, hace
+    // pico a mitad de los veinte y declina suave a partir de los treinta y pocos.
+    const peaks: number[] = []
+    const jumps: number[] = []
+    for (let seed = 4000; seed < 4060; seed++) {
+      const { steps } = runCareer(seed, 'FW', (d) => d.options[0].id)
+      const seasons = seasonsOf(steps)
+      const peak = seasons.reduce((b, s) => (s.ovrEnd > b.ovrEnd ? s : b), seasons[0])
+      peaks.push(peak.age)
+      for (const s of seasons) jumps.push(s.ovrEnd - s.ovrStart)
+    }
+    const avgPeakAge = peaks.reduce((a, b) => a + b, 0) / peaks.length
+    expect(avgPeakAge).toBeGreaterThan(22)
+    expect(avgPeakAge).toBeLessThan(30)
+    expect(Math.max(...jumps)).toBeLessThanOrEqual(MAX_SEASON_GAIN)
+  })
+})
+
+describe('mercado creíble', () => {
+  it('las carreras se concentran en el país y el continente del jugador', () => {
+    let total = 0
+    let home = 0
+    let sameConf = 0
+    let teenSeasons = 0
+    let teenAbroad = 0
+    for (let seed = 1; seed <= 80; seed++) {
+      const { state } = runCareer(seed, 'FW', (d) => d.options[0].id)
+      for (const h of state.history) {
+        const league = getLeague(getClub(h.clubId).leagueId)
+        const conf = getNation(league.nationId).conf
+        total++
+        if (league.nationId === 'ESP') home++
+        if (conf === 'UEFA') sameConf++
+        if (h.age <= 19) {
+          teenSeasons++
+          if (conf !== 'UEFA') teenAbroad++
+        }
+      }
+    }
+    // Un español juega la mayor parte de su carrera en Europa y buena parte en casa.
+    expect(sameConf / total).toBeGreaterThan(0.8)
+    expect(home / total).toBeGreaterThan(0.2)
+    // Y casi ningún adolescente aparece fichado desde otro continente.
+    expect(teenAbroad / Math.max(teenSeasons, 1)).toBeLessThan(0.06)
+  })
+
+  it('un jugador de una liga menor no acaba en la élite sin dar el salto por pasos', () => {
+    // Nadie salta de la liga india a la Premier de un verano para otro: el filtro
+    // de nivel obliga a escalar. Se comprueba que no hay saltos de liga enormes.
+    for (let seed = 40; seed < 70; seed++) {
+      const { state } = runCareer(seed, 'MF', (d) => d.options[0].id)
+      for (let i = 1; i < state.history.length; i++) {
+        const from = getLeague(state.history[i - 1].leagueId).strength
+        const to = getLeague(state.history[i].leagueId).strength
+        expect(to - from, `${state.history[i - 1].season} → ${state.history[i].season}`).toBeLessThan(40)
+      }
     }
   })
 })

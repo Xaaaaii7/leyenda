@@ -3,11 +3,12 @@ import { useI18n } from '../i18n'
 import { getClub, getLeague } from '../data/clubs'
 import { clubNamesOf } from '../engine/legacy'
 import type { CareerState } from '../engine/types'
-import { money, ordinal } from '../format'
+import { money } from '../format'
 import { drawLegacyCard, downloadCanvas } from '../legacyCard'
 import type { LegacyCardData } from '../legacyCard'
 import { Card, Stat } from './Bits'
 import { TrophyCase } from './CareerHub'
+import { CareerGrid } from './CareerGrid'
 
 interface Props {
   state: CareerState
@@ -15,7 +16,7 @@ interface Props {
 }
 
 export function LegacyScreen({ state, onReplay }: Props) {
-  const { t, tx, locale } = useI18n()
+  const { t, tx } = useI18n()
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const [copied, setCopied] = useState(false)
   const legacy = state.legacy
@@ -173,44 +174,7 @@ export function LegacyScreen({ state, onReplay }: Props) {
       ) : null}
 
       <Card title={t('legacy.viewCareer')}>
-        <div className="table-wrap">
-          <table className="career">
-            <thead>
-              <tr>
-                <th>{t('hub.seasonCol')}</th>
-                <th>{t('hub.club')}</th>
-                <th>{t('stat.apps')}</th>
-                <th>{t('stat.goals')}</th>
-                <th>{t('stat.assists')}</th>
-                <th>{t('stat.rating')}</th>
-                <th>{t('hub.ovr')}</th>
-                <th>{t('stat.leaguePosition')}</th>
-              </tr>
-            </thead>
-            <tbody>
-              {state.history.map((s) => (
-                <tr key={s.index}>
-                  <td>{s.season}</td>
-                  <td>
-                    <span className="club-cell">
-                      <span>
-                        {getClub(s.clubId).name}
-                        {s.onLoan ? ' *' : ''}
-                      </span>
-                      <span className="league">{getLeague(s.leagueId).name}</span>
-                    </span>
-                  </td>
-                  <td>{s.stats.apps}</td>
-                  <td>{s.stats.goals}</td>
-                  <td>{s.stats.assists}</td>
-                  <td>{s.stats.rating.toFixed(2)}</td>
-                  <td>{s.ovrEnd}</td>
-                  <td>{ordinal(s.leaguePosition, locale)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        <CareerGrid state={state} />
       </Card>
 
       <button className="btn btn-primary btn-block" type="button" onClick={onReplay}>

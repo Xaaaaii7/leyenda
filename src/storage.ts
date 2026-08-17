@@ -1,6 +1,6 @@
 import type { CareerState } from './engine/types'
 
-const KEY = 'leyenda.career.v1'
+const KEY = 'leyenda.career.v2'
 
 /**
  * El estado de carrera es JSON puro (incluido el estado del PRNG), así que

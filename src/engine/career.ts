@@ -79,6 +79,7 @@ export function createCareer(setup: CareerSetup): CareerState {
       contractYears: 3,
       wage: 0.05,
       marketValue: 0.3,
+      seasonsAtClub: 0,
       captain: false,
       retiredFromNT: false,
       ntNationId: setup.identity.nationId,
@@ -229,6 +230,22 @@ function prepareQueue(state: CareerState, stage: 'preseason' | 'postseason', rng
   state.queue = decisions
 }
 
+/**
+ * Precio de cambiar de aires. El primer año en un club nuevo cuesta minutos y
+ * rendimiento mientras el jugador se adapta; a partir del tercero el arraigo
+ * empieza a devolverlo. Es lo que evita que fichar cada verano salga gratis.
+ */
+export function adaptationFor(seasonsAtClub: number): {
+  minutes: number
+  rating: number
+  growth: number
+} {
+  if (seasonsAtClub === 0) return { minutes: -0.10, rating: -0.12, growth: 0.9 }
+  if (seasonsAtClub === 1) return { minutes: -0.03, rating: -0.04, growth: 1 }
+  if (seasonsAtClub >= 3) return { minutes: 0.04, rating: 0.05, growth: 1 }
+  return { minutes: 0, rating: 0, growth: 1 }
+}
+
 /** ¿Juega el club competición continental esta temporada? */
 function hasContinental(clubId: string): boolean {
   const club = getClub(clubId)
@@ -254,7 +271,8 @@ function runSeason(state: CareerState, rng: Rng): SeasonRecord {
 
   const cont = hasContinental(p.clubId)
   const fixtures = clubFixtures(club.prestige, cont)
-  const minutesShare = clamp(ROLE_MINUTES[baseRole] + mods.minutes, 0, 0.97)
+  const adapt = adaptationFor(p.seasonsAtClub)
+  const minutesShare = clamp(ROLE_MINUTES[baseRole] + mods.minutes + adapt.minutes, 0, 0.97)
   const minutes = fixtures * 90 * minutesShare * availability
 
   const stats = simulateStats(
@@ -267,7 +285,7 @@ function runSeason(state: CareerState, rng: Rng): SeasonRecord {
       clubPrestige: club.prestige,
       leagueStrength: league.strength,
       form: p.form,
-      ratingBonus: mods.rating,
+      ratingBonus: mods.rating + adapt.rating,
     },
     rng,
   )
@@ -333,9 +351,10 @@ function runSeason(state: CareerState, rng: Rng): SeasonRecord {
       minutesShare: developmentShare,
       clubPrestige: club.prestige,
       leagueStrength: league.strength,
-      growthMult: mods.growth,
+      growthMult: mods.growth * adapt.growth,
       trainingFocus: mods.trainingFocus,
       injuryWeeks,
+      seasonRating: stats.rating,
     },
     rng,
   )
@@ -470,12 +489,14 @@ function endOfYear(state: CareerState, rng: Rng): boolean {
   if (p.parentClubId) {
     p.clubId = p.parentClubId
     p.parentClubId = undefined
+    p.seasonsAtClub = 0
     state.news.push({
       title: { key: 'news.loanReturn.title' },
       text: { key: 'news.loanReturn.text', params: { club: getClub(p.clubId).name } },
     })
   }
 
+  p.seasonsAtClub += 1
   p.age += 1
   state.year += 1
   state.seasonIndex += 1

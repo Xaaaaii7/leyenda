@@ -21,14 +21,66 @@ export function comfortPrestige(ovr: number): number {
   return clamp((ovr - 13) / 0.78, 30, 96)
 }
 
-function offerWeight(club: Club, target: number, ambition: number): number {
+/** Contexto geográfico del jugador: de dónde es y dónde juega ahora. */
+interface Roots {
+  nationId: string
+  conf: string
+  currentLeagueId: string
+  currentNationId: string
+  currentStrength: number
+  age: number
+}
+
+function rootsOf(player: PlayerState): Roots {
+  const nation = getNation(player.identity.nationId)
+  const league = player.clubId ? getLeague(getClub(player.clubId).leagueId) : null
+  return {
+    nationId: nation.id,
+    conf: nation.conf,
+    currentLeagueId: league?.id ?? '',
+    currentNationId: league?.nationId ?? nation.id,
+    currentStrength: league?.strength ?? 60,
+    age: player.age,
+  }
+}
+
+/**
+ * Cuánto de plausible es que ese club en concreto llame. El fútbol es global,
+ * pero no uniforme: la mayoría de los movimientos son dentro del mismo país o
+ * continente, y a un chaval de dieciocho años no lo fichan de la otra punta del
+ * mundo. Sin esto, un canterano español acaba en la liga india a los diecisiete.
+ */
+function geographyFactor(club: Club, roots: Roots): number {
+  const league = getLeague(club.leagueId)
+  if (league.id === roots.currentLeagueId) return 1.7
+  if (league.nationId === roots.currentNationId) return 1.5
+  if (league.nationId === roots.nationId) return 1.3
+  const sameConf = getNation(league.nationId).conf === roots.conf
+  // Salir del continente es raro, y más cuanto más joven es el jugador.
+  const abroad = roots.age <= 20 ? 0.12 : roots.age <= 23 ? 0.3 : 0.55
+  return sameConf ? 1 : abroad
+}
+
+/** Nadie da un paso atrás grande de nivel de competición sin un motivo. */
+function stepDownFactor(club: Club, roots: Roots): number {
+  const drop = roots.currentStrength - getLeague(club.leagueId).strength
+  if (drop <= 6) return 1
+  return clamp(1 - (drop - 6) / 40, 0.15, 1)
+}
+
+function offerWeight(club: Club, target: number, ambition: number, roots: Roots): number {
   const diff = club.prestige - target
   // Los clubes por debajo del nivel del jugador pierden interés para él;
   // los muy por encima raramente llaman.
   if (diff > ambition) return 0
   if (diff < -22) return 0
   const closeness = 1 - Math.abs(diff - ambition * 0.35) / 26
-  return Math.max(0.02, closeness) * (0.6 + getLeague(club.leagueId).strength / 160)
+  return (
+    Math.max(0.02, closeness) *
+    (0.6 + getLeague(club.leagueId).strength / 160) *
+    geographyFactor(club, roots) *
+    stepDownFactor(club, roots)
+  )
 }
 
 export interface OfferContext {
@@ -45,6 +97,7 @@ export interface OfferContext {
 /** Genera las ofertas de mercado del verano. Puede devolver lista vacía. */
 export function generateOffers(player: PlayerState, ctx: OfferContext, rng: Rng): Offer[] {
   const target = comfortPrestige(ctx.ovr)
+  const roots = rootsOf(player)
 
   // Una gran temporada, juventud y fama amplían el techo de clubes interesados.
   const ambition =
@@ -61,7 +114,7 @@ export function generateOffers(player: PlayerState, ctx: OfferContext, rng: Rng)
 
   if (!rng.chance(interest)) return []
 
-  const pool = CLUBS.filter((c) => c.id !== player.clubId && offerWeight(c, target, ambition) > 0)
+  const pool = CLUBS.filter((c) => c.id !== player.clubId && offerWeight(c, target, ambition, roots) > 0)
   if (pool.length === 0) return []
 
   const count = clamp(
@@ -71,7 +124,7 @@ export function generateOffers(player: PlayerState, ctx: OfferContext, rng: Rng)
   const offers: Offer[] = []
   const taken = new Set<string>()
   for (let i = 0; i < count; i++) {
-    const club = rng.weighted(pool, (c) => (taken.has(c.id) ? 0 : offerWeight(c, target, ambition)))
+    const club = rng.weighted(pool, (c) => (taken.has(c.id) ? 0 : offerWeight(c, target, ambition, roots)))
     if (taken.has(club.id)) continue
     taken.add(club.id)
     offers.push(buildOffer(player, club, ctx.ovr, false, rng))
@@ -83,11 +136,19 @@ export function generateOffers(player: PlayerState, ctx: OfferContext, rng: Rng)
 /** Cesión: aparece cuando un joven no juega en un club grande. */
 export function generateLoanOffers(player: PlayerState, ovr: number, rng: Rng): Offer[] {
   const target = comfortPrestige(ovr) + 4
+  const roots = rootsOf(player)
   const pool = CLUBS.filter(
     (c) => c.id !== player.clubId && c.prestige <= target && c.prestige >= target - 22,
   )
   if (pool.length === 0) return []
-  const picks = rng.shuffle(pool).slice(0, 2)
+  // Una cesión busca minutos cerca de casa, no una aventura al otro hemisferio.
+  const picks: Club[] = []
+  for (let i = 0; i < 2 && picks.length < 2; i++) {
+    const c = rng.weighted(pool, (x) =>
+      picks.some((p) => p.id === x.id) ? 0 : geographyFactor(x, roots),
+    )
+    if (!picks.some((p) => p.id === c.id)) picks.push(c)
+  }
   return picks.map((c) => buildOffer(player, c, ovr, true, rng))
 }
 

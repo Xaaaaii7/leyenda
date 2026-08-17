@@ -1,7 +1,7 @@
-import { getClub, getLeague } from '../data/clubs'
+import { CLUBS, getClub, getLeague } from '../data/clubs'
 import { getNation } from '../data/nations'
 import { Rng, clamp } from './rng'
-import { marketValueOf, ovrOf, wageFor } from './player'
+import { convertPosition, marketValueOf, ovrOf, wageFor } from './player'
 import { academyOffers, generateLoanOffers, generateOffers } from './transfers'
 import type { Offer } from './transfers'
 import type {
@@ -69,6 +69,7 @@ export function moveTo(state: CareerState, offer: Offer) {
     p.wage = offer.wage
   }
   p.captain = false
+  p.seasonsAtClub = 0
   if (!state.totals.clubs.includes(offer.clubId)) state.totals.clubs.push(offer.clubId)
   const club = getClub(offer.clubId)
   p.marketValue = marketValueOf(p, getLeague(club.leagueId).strength)
@@ -82,6 +83,15 @@ const ATTR_GROUPS: { id: string; keys: AttributeKey[] }[] = [
 ]
 
 const round2 = (v: number) => Math.round(v * 100) / 100
+
+/**
+ * Ligas que pagan muy por encima de su nivel deportivo. De ahí salen las ofertas
+ * millonarias del final de carrera.
+ */
+const RICH_LEAGUES = ['SAU1', 'USA1']
+const RICH_LEAGUE_CLUBS = CLUBS.filter(
+  (c) => RICH_LEAGUES.includes(c.leagueId) && c.prestige >= 66,
+)
 
 // ── Catálogo de eventos ──────────────────────────────────────────────
 
@@ -280,7 +290,9 @@ const EVENTS: EventDef[] = [
     when: (ctx) => ctx.state.player.age >= 30 && ctx.ovr >= 78,
     build: (ctx, rng) => {
       const money = Math.round(ctx.state.player.wage * rng.float(2.4, 4.2) * 10) / 10
-      const dest = rng.pick(['hil', 'nas', 'itt', 'mia', 'lafc'])
+      // Los destinos se eligen por criterio, no por id: los clubes más ricos de
+      // las ligas que pagan por encima de su nivel deportivo.
+      const dest = rng.pick(RICH_LEAGUE_CLUBS).id
       return {
         title: x('event.goldenExit.title'),
         text: x('event.goldenExit.text', { club: getClub(dest).name }),
@@ -527,7 +539,7 @@ const EVENTS: EventDef[] = [
     apply: (ctx, optionId, payload) => {
       if (optionId === 'keep') return x('event.positionChange.doneKeep')
       const to = payload.to as 'MF' | 'DF'
-      ctx.state.player.identity.position = to
+      convertPosition(ctx.state.player, to)
       adjust(ctx.state, { form: -6, morale: 3 })
       ctx.state.modifiers.growth += 0.15
       return x('event.positionChange.doneChange', { to: x(`position.${to}`) })

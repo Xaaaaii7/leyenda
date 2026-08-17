@@ -116,6 +116,7 @@ export const es: Catalog = {
   'hub.simulating': 'Simulando...',
   'hub.autoplay': 'Simular hasta el final',
   'hub.autoplayHint': 'Toma la primera opción de cada decisión que quede.',
+  'hub.playingNow': 'En juego...',
   'hub.seasonCol': 'Temporada',
   'hub.loanNote': '* Temporada como cedido',
   'hub.saved': 'Partida guardada',

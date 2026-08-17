@@ -39,6 +39,8 @@ export interface League {
   /** 1 = primera división, 2 = segunda. */
   tier: number
   strength: number
+  /** Número de equipos de la competición real. Un test comprueba que cuadra. */
+  size: number
   continental: 'UCL' | 'LIB' | 'CAF' | 'AFC' | 'CONCACAF' | 'NONE'
 }
 
@@ -48,7 +50,6 @@ export interface Club {
   leagueId: string
   /** 30-96. Nivel deportivo, exigencia y capacidad salarial. */
   prestige: number
-  city: string
 }
 
 /**
@@ -192,6 +193,8 @@ export interface PlayerState {
   /** Salario anual en millones. */
   wage: number
   marketValue: number
+  /** Temporadas completadas en el club actual. 0 = acaba de llegar. */
+  seasonsAtClub: number
   /** Si es capitán del club. */
   captain: boolean
   /** Se ha retirado de la selección. */

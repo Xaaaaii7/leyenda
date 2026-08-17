@@ -3,12 +3,12 @@ import type { CareerState, Legacy, SeasonRecord } from './types'
 
 /** Escalones del veredicto final, de mayor a menor. El texto lo pone el i18n. */
 const TIERS: { tier: string; min: number }[] = [
-  { tier: 'immortal', min: 1000 },
-  { tier: 'legend', min: 700 },
-  { tier: 'worldClass', min: 470 },
-  { tier: 'elite', min: 320 },
-  { tier: 'solid', min: 190 },
-  { tier: 'journeyman', min: 90 },
+  { tier: 'immortal', min: 2200 },
+  { tier: 'legend', min: 1600 },
+  { tier: 'worldClass', min: 1000 },
+  { tier: 'elite', min: 660 },
+  { tier: 'solid', min: 400 },
+  { tier: 'journeyman', min: 200 },
   { tier: 'faded', min: 0 },
 ]
 

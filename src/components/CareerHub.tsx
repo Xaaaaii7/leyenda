@@ -4,9 +4,10 @@ import { currentOvr, seasonLabel } from '../engine/career'
 import { formLabel } from '../engine/player'
 import { ATTRIBUTE_KEYS } from '../engine/types'
 import type { CareerState, Step, Trophy } from '../engine/types'
-import { attrKey, money, ordinal } from '../format'
+import { attrKey, money } from '../format'
 import { Card, Chip, Meter, Stat } from './Bits'
 import { DecisionCard, NewsCard, SeasonSummary } from './StepCard'
+import { CareerGrid } from './CareerGrid'
 
 interface Props {
   state: CareerState
@@ -18,7 +19,7 @@ interface Props {
 }
 
 export function CareerHub({ state, step, onChoose, onAdvance, onAutoplay, onFinish }: Props) {
-  const { t, tx, locale } = useI18n()
+  const { t, tx } = useI18n()
   const player = state.player
   const ovr = currentOvr(state)
   const position = player.identity.position
@@ -49,10 +50,14 @@ export function CareerHub({ state, step, onChoose, onAdvance, onAutoplay, onFini
               {player.captain ? <Chip variant="gold">{t('hub.captain')}</Chip> : null}
             </div>
           </div>
-          <div style={{ textAlign: 'right' }}>
+          <div className="head-totals">
             <div className="tiny dim">{t('hub.season', { season: seasonLabel(state.year) })}</div>
             <div style={{ fontWeight: 700 }}>{money(player.marketValue)}</div>
-            <div className="tiny dim">{t('hub.value')}</div>
+            <div className="row tiny dim" style={{ gap: 10, justifyContent: 'flex-end', marginTop: 4 }}>
+              <span>{t('stat.apps')} {state.totals.apps}</span>
+              <span>{t('stat.goals')} {state.totals.goals}</span>
+              <span>{t('stat.assists')} {state.totals.assists}</span>
+            </div>
           </div>
         </div>
 
@@ -128,51 +133,9 @@ export function CareerHub({ state, step, onChoose, onAdvance, onAutoplay, onFini
 
       <TrophyCase trophies={state.totals.trophies} awards={state.totals.awards} />
 
-      {state.history.length > 0 ? (
-        <Card title={t('hub.career')}>
-          <div className="table-wrap">
-            <table className="career">
-              <thead>
-                <tr>
-                  <th>{t('hub.seasonCol')}</th>
-                  <th>{t('hub.club')}</th>
-                  <th>{t('stat.apps')}</th>
-                  <th>{t('stat.goals')}</th>
-                  <th>{t('stat.assists')}</th>
-                  <th>{t('stat.rating')}</th>
-                  <th>{t('hub.ovr')}</th>
-                  <th>{t('stat.leaguePosition')}</th>
-                </tr>
-              </thead>
-              <tbody>
-                {state.history.map((s) => (
-                  <tr key={s.index}>
-                    <td>{s.season}</td>
-                    <td>
-                      <span className="club-cell">
-                        <span>
-                          {getClub(s.clubId).name}
-                          {s.onLoan ? ' *' : ''}
-                        </span>
-                        <span className="league">{getLeague(s.leagueId).name}</span>
-                      </span>
-                    </td>
-                    <td>{s.stats.apps}</td>
-                    <td>{s.stats.goals}</td>
-                    <td>{s.stats.assists}</td>
-                    <td>{s.stats.rating.toFixed(2)}</td>
-                    <td>{s.ovrEnd}</td>
-                    <td>{ordinal(s.leaguePosition, locale)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-          {state.history.some((s) => s.onLoan) ? (
-            <p className="tiny dim" style={{ marginTop: 8 }}>{t('hub.loanNote')}</p>
-          ) : null}
-        </Card>
-      ) : null}
+      <Card title={t('hub.career')}>
+        <CareerGrid state={state} current />
+      </Card>
 
       {state.history.length > 0 ? (
         <Card title={t('season.highlights')}>

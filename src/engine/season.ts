@@ -277,9 +277,9 @@ export function simulateAwards(ctx: AwardContext, rng: Rng): Award[] {
   if (stats.goals >= 8 && rng.chance(0.06)) add('puskas')
 
   // Balón de Oro: hace falta nivel, números, un título grande y algo de suerte.
-  if (ctx.ovr >= 87 && ctx.leagueStrength >= 76 && bigTrophy && contribution >= 22 && stats.rating >= 7.5) {
+  if (ctx.ovr >= 87 && ctx.leagueStrength >= 78 && bigTrophy && contribution >= 24 && stats.rating >= 7.55) {
     const score =
-      (ctx.ovr - 86) * 0.09 +
+      (ctx.ovr - 86) * 0.08 +
       (contribution - 20) * 0.012 +
       (stats.rating - 7.4) * 0.5 +
       (ctx.trophies.some((t) => t.kind === 'ucl') ? 0.22 : 0) +

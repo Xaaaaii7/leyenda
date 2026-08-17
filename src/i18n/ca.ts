@@ -116,6 +116,7 @@ export const ca: Catalog = {
   'hub.simulating': 'Simulant...',
   'hub.autoplay': 'Simular fins al final',
   'hub.autoplayHint': 'Pren la primera opció de cada decisió que quedi.',
+  'hub.playingNow': 'En joc...',
   'hub.seasonCol': 'Temporada',
   'hub.loanNote': '* Temporada com a cedit',
   'hub.saved': 'Partida desada',

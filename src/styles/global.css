@@ -667,3 +667,39 @@ table.career tr:hover td {
   clip: rect(0 0 0 0);
   white-space: nowrap;
 }
+
+/* ── Career grid ────────────────────────────────────────────────── */
+
+table.career.grid tbody tr.row-empty td {
+  color: var(--dim);
+  height: 30px;
+}
+
+table.career.grid tbody tr.row-now {
+  background: rgba(53, 224, 138, 0.07);
+}
+
+table.career.grid tbody tr.row-now .age-cell {
+  color: var(--accent);
+  font-weight: 800;
+}
+
+table.career.grid .age-cell {
+  font-weight: 700;
+  color: var(--muted);
+  width: 46px;
+}
+
+table.career.grid .ovr-cell {
+  font-weight: 800;
+}
+
+table.career.grid .pending {
+  color: var(--accent);
+  font-size: 12px;
+}
+
+.head-totals {
+  text-align: right;
+  margin-left: auto;
+}
