@@ -166,8 +166,10 @@ function buildOffer(player: PlayerState, club: Club, ovr: number, loan: boolean,
 }
 
 /**
- * Tres ofertas de cantera al empezar: una del club grande del país, una intermedia
- * y una modesta. Si el país no tiene clubes en el dataset, se busca en su confederación.
+ * Tres ofertas de cantera al empezar. A un chaval de dieciséis años lo normal es
+ * que lo llamen clubes modestos de su país; que aparezca un grande pasa, pero
+ * pocas veces. Por eso el peso cae de forma exponencial con el prestigio en vez
+ * de reservar una plaza fija para el gigante de turno.
  */
 export function academyOffers(nationId: string, rng: Rng): Offer[] {
   let pool = clubsOfNation(nationId)
@@ -177,20 +179,14 @@ export function academyOffers(nationId: string, rng: Rng): Offer[] {
   }
   if (pool.length < 3) pool = CLUBS.slice()
 
-  const sorted = pool.slice().sort((a, b) => b.prestige - a.prestige)
-  const top = sorted.slice(0, Math.max(1, Math.ceil(sorted.length * 0.25)))
-  const mid = sorted.slice(Math.floor(sorted.length * 0.3), Math.ceil(sorted.length * 0.7))
-  const low = sorted.slice(Math.floor(sorted.length * 0.65))
-
   const chosen: Club[] = []
-  const takeFrom = (arr: Club[]) => {
-    const candidates = arr.filter((c) => !chosen.some((x) => x.id === c.id))
-    if (candidates.length) chosen.push(rng.pick(candidates))
+  const weight = (c: Club) =>
+    chosen.some((x) => x.id === c.id) ? 0 : Math.pow(0.93, Math.max(0, c.prestige - 55))
+  while (chosen.length < 3 && chosen.length < pool.length) {
+    const pick = rng.weighted(pool, weight)
+    if (!chosen.some((x) => x.id === pick.id)) chosen.push(pick)
   }
-  takeFrom(top)
-  takeFrom(mid.length ? mid : sorted)
-  takeFrom(low.length ? low : sorted)
-  while (chosen.length < 3 && chosen.length < sorted.length) takeFrom(sorted)
+  chosen.sort((a, b) => b.prestige - a.prestige)
 
   return chosen.map((club) => ({
     clubId: club.id,

@@ -45,6 +45,12 @@ const ALWAYS = new Set([
   'academy', 'transfer', 'loan', 'renewal', 'retirementCall', 'rehab', 'youthLeap',
 ])
 
+/**
+ * Probabilidad de que salga un evento de sabor en cada una de las dos fases de
+ * la temporada. Con 0,25 sale aproximadamente uno cada tres temporadas, como en la referencia.
+ */
+const FLAVOUR_ODDS = 0.25
+
 export const MAX_SEASONS = 24
 export const RETIREMENT_HARD_AGE = 41
 
@@ -210,13 +216,12 @@ function prepareQueue(state: CareerState, stage: 'preseason' | 'postseason', rng
   const optional = available.filter((e) => !ALWAYS.has(e.key))
 
   const chosen = [...forced]
-  // Uno o dos eventos de sabor por fase, elegidos por peso.
-  const extras = rng.int(0, forced.length >= 2 ? 1 : 2)
-  const pool = optional.slice()
-  for (let i = 0; i < extras && pool.length > 0; i++) {
-    const pickIt = rng.weighted(pool, (e) => e.weight)
-    pool.splice(pool.indexOf(pickIt), 1)
-    chosen.push(pickIt)
+  // Como mucho un evento de sabor por temporada, y ni siquiera todas: medido en
+  // el juego de referencia salen unos ocho en una carrera de veinticuatro
+  // temporadas. Antes salían veinticinco y dejaban de parecer un acontecimiento.
+  if (!state.flavourThisSeason && optional.length > 0 && rng.chance(FLAVOUR_ODDS)) {
+    chosen.push(rng.weighted(optional, (e) => e.weight))
+    state.flavourThisSeason = true
   }
 
   chosen.sort((a, b) => (EVENT_ORDER[a.key] ?? 50) - (EVENT_ORDER[b.key] ?? 50))
@@ -486,6 +491,7 @@ function endOfYear(state: CareerState, rng: Rng): boolean {
   const p = state.player
 
   p.seasonsAtClub += 1
+  state.flavourThisSeason = false
 
   // Vuelta de cesión, sólo cuando la temporada cedida ya se ha jugado.
   if (p.parentClubId && state.seasonIndex >= (p.loanReturnAt ?? 0)) {

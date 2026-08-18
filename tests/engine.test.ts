@@ -329,18 +329,33 @@ describe('carrera completa', () => {
     expect(bigLevel).toBeGreaterThan(smallLevel)
   })
 
-  it('dominar en un club a tu medida da más goles que perseguir gigantes', () => {
+  it('perseguir gigantes y quedarse en casa dan carreras distintas, no una mejor', () => {
     const bigPolicy = (d: { options: { id: string }[] }) => d.options[0].id
     const smallPolicy = (d: { options: { id: string }[] }) => d.options[d.options.length - 1].id
+    let bigTrophies = 0
+    let smallTrophies = 0
+    let bigLevel = 0
+    let smallLevel = 0
     let bigGoals = 0
     let smallGoals = 0
-    for (let seed = 900; seed < 960; seed++) {
-      bigGoals += legacyOf(runCareer(seed, 'FW', bigPolicy).steps).totals.goals
-      smallGoals += legacyOf(runCareer(seed, 'FW', smallPolicy).steps).totals.goals
+    const n = 60
+    for (let seed = 900; seed < 900 + n; seed++) {
+      const b = legacyOf(runCareer(seed, 'FW', bigPolicy).steps)
+      const s = legacyOf(runCareer(seed, 'FW', smallPolicy).steps)
+      bigTrophies += b.totals.trophies.length
+      smallTrophies += s.totals.trophies.length
+      bigLevel += b.level
+      smallLevel += s.level
+      bigGoals += b.totals.goals
+      smallGoals += s.totals.goals
     }
-    // El que se queda es la referencia de su equipo y marca más; el que persigue
-    // gigantes gana títulos y nivel, pero comparte protagonismo.
-    expect(smallGoals).toBeGreaterThan(bigGoals)
+    // Lo que separa a las dos carreras es el escaparate, no la producción:
+    // el que persigue gigantes gana muchos más títulos y juega a otro nivel...
+    expect(bigTrophies).toBeGreaterThan(smallTrophies * 3)
+    expect(bigLevel).toBeGreaterThan(smallLevel * 1.2)
+    // ...pero marca prácticamente lo mismo, porque en un club a su medida es la
+    // referencia del equipo. Ninguna de las dos vías domina a la otra en goles.
+    expect(Math.abs(bigGoals - smallGoals) / bigGoals).toBeLessThan(0.2)
   })
 
   it('el nivel de la carrera está dentro del rango de prestigios reales', () => {

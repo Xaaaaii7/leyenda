@@ -298,6 +298,8 @@ export interface CareerState {
   legacy?: Legacy
   /** La cola de la fase actual ya está generada. */
   prepared: boolean
+  /** Ya ha salido un evento de sabor esta temporada: no se repite en la otra fase. */
+  flavourThisSeason?: boolean
   /** Cola de decisiones pendientes de la fase actual. */
   queue: Decision[]
   pending: Decision | null
