@@ -1,7 +1,7 @@
 import { clubsOfLeague, getClub, getLeague, leagueTopPrestige } from '../data/clubs'
 import { Rng, clamp } from './rng'
 import {
-  buildAttributes, developPlayer, marketValueOf, ovrOf, rollPotential, wageFor,
+  adjustOvr, buildAttributes, developPlayer, marketValueOf, ovrOf, rollPotential, wageFor,
 } from './player'
 import {
   ROLE_MINUTES, clubFixtures, playerImpactOn, roleFor, rollInjuries,
@@ -46,16 +46,18 @@ const ALWAYS = new Set([
 ])
 
 /**
- * Probabilidad de que salga un evento de sabor en cada una de las dos fases de
- * la temporada. Con 0,25 sale aproximadamente uno cada tres temporadas, como en la referencia.
+ * Cuántos eventos de sabor salen en cada fase de la temporada, por peso relativo.
+ * Da algo más de dos por temporada: un punto medio entre el evento único de
+ * Copero y el goteo constante de un manager. Cada uno aporta poco y lo que se ve
+ * al final es el total acumulado del verano.
  */
-const FLAVOUR_ODDS = 0.25
+const FLAVOUR_SPREAD: Record<number, number> = { 0: 40, 1: 45, 2: 15 }
 
 export const MAX_SEASONS = 24
 export const RETIREMENT_HARD_AGE = 41
 
 function emptyModifiers(): SeasonModifiers {
-  return { minutes: 0, growth: 1, injuryRisk: 1, rating: 0 }
+  return { minutes: 0, growth: 1, injuryRisk: 1, rating: 0, ovrDelta: 0 }
 }
 
 function emptyTotals(): CareerTotals {
@@ -219,9 +221,12 @@ function prepareQueue(state: CareerState, stage: 'preseason' | 'postseason', rng
   // Como mucho un evento de sabor por temporada, y ni siquiera todas: medido en
   // el juego de referencia salen unos ocho en una carrera de veinticuatro
   // temporadas. Antes salían veinticinco y dejaban de parecer un acontecimiento.
-  if (!state.flavourThisSeason && optional.length > 0 && rng.chance(FLAVOUR_ODDS)) {
-    chosen.push(rng.weighted(optional, (e) => e.weight))
-    state.flavourThisSeason = true
+  const pool = optional.slice()
+  const extras = rng.weighted([0, 1, 2], (n) => FLAVOUR_SPREAD[n])
+  for (let i = 0; i < extras && pool.length > 0; i++) {
+    const pickIt = rng.weighted(pool, (e) => e.weight)
+    pool.splice(pool.indexOf(pickIt), 1)
+    chosen.push(pickIt)
   }
 
   chosen.sort((a, b) => (EVENT_ORDER[a.key] ?? 50) - (EVENT_ORDER[b.key] ?? 50))
@@ -266,8 +271,13 @@ function runSeason(state: CareerState, rng: Rng): SeasonRecord {
   const mods = state.modifiers
   const club = getClub(p.clubId)
   const league = getLeague(club.leagueId)
-  const ovrStart = currentOvr(state)
   const season = seasonLabel(state.year)
+  // Lo decidido durante el verano se cobra ahora, todo junto: es el número que
+  // el jugador ha visto acumularse decisión a decisión.
+  const ovrBeforeSummer = currentOvr(state)
+  if (mods.ovrDelta !== 0) adjustOvr(p, mods.ovrDelta)
+  const ovrStart = currentOvr(state)
+  const summerDelta = ovrStart - ovrBeforeSummer
 
   const baseRole = roleFor(ovrStart, club.prestige, p.form, p.age, rng)
   const injuries = rollInjuries(p, mods, rng)
@@ -411,6 +421,7 @@ function runSeason(state: CareerState, rng: Rng): SeasonRecord {
     national,
     ovrStart,
     ovrEnd,
+    summerDelta,
     marketValue: p.marketValue,
     wage: p.wage,
     highlights: buildHighlights(state, stats, trophies, awards, national, injuries, leaguePosition),
@@ -491,7 +502,6 @@ function endOfYear(state: CareerState, rng: Rng): boolean {
   const p = state.player
 
   p.seasonsAtClub += 1
-  state.flavourThisSeason = false
 
   // Vuelta de cesión, sólo cuando la temporada cedida ya se ha jugado.
   if (p.parentClubId && state.seasonIndex >= (p.loanReturnAt ?? 0)) {

@@ -564,16 +564,25 @@ describe('mercado creíble', () => {
     expect(teenAbroad / Math.max(teenSeasons, 1)).toBeLessThan(0.06)
   })
 
-  it('un jugador de una liga menor no acaba en la élite sin dar el salto por pasos', () => {
-    // Nadie salta de la liga india a la Premier de un verano para otro: el filtro
-    // de nivel obliga a escalar. Se comprueba que no hay saltos de liga enormes.
-    for (let seed = 40; seed < 70; seed++) {
+  it('se sube de liga por escalones, no de una liga menor a la élite de golpe', () => {
+    let movimientos = 0
+    let saltosGrandes = 0
+    let mayorSalto = 0
+    for (let seed = 40; seed < 100; seed++) {
       const { state } = runCareer(seed, 'MF', (d) => d.options[0].id)
       for (let i = 1; i < state.history.length; i++) {
         const from = getLeague(state.history[i - 1].leagueId).strength
         const to = getLeague(state.history[i].leagueId).strength
-        expect(to - from, `${state.history[i - 1].season} → ${state.history[i].season}`).toBeLessThan(40)
+        if (to === from) continue
+        movimientos++
+        const salto = to - from
+        if (salto > 25) saltosGrandes++
+        mayorSalto = Math.max(mayorSalto, salto)
       }
     }
+    // Subir mucho de golpe existe (el fichaje que saca a alguien de la nada),
+    // pero es la excepción, no la vía normal.
+    expect(saltosGrandes / movimientos).toBeLessThan(0.08)
+    expect(mayorSalto).toBeLessThan(50)
   })
 })

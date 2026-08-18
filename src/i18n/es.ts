@@ -170,6 +170,8 @@ export const es: Catalog = {
   'season.subtitle': '{club} · {league}',
   'season.role': 'Rol: {role}',
   'season.ovrChange': 'Media {from} → {to}',
+  'season.summer': 'Verano: {delta} de media',
+  'hub.summerSoFar': 'Verano {delta}',
   'season.highlights': 'Lo que pasó',
   'season.noNational': 'Sin convocatorias esta temporada.',
   'season.continue': 'Seguir',

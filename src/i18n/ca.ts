@@ -170,6 +170,8 @@ export const ca: Catalog = {
   'season.subtitle': '{club} · {league}',
   'season.role': 'Rol: {role}',
   'season.ovrChange': 'Mitjana {from} → {to}',
+  'season.summer': 'Estiu: {delta} de mitjana',
+  'hub.summerSoFar': 'Estiu {delta}',
   'season.highlights': 'Què va passar',
   'season.noNational': 'Sense convocatòries aquesta temporada.',
   'season.continue': 'Seguir',

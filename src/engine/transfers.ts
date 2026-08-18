@@ -68,6 +68,17 @@ function stepDownFactor(club: Club, roots: Roots): number {
   return clamp(1 - (drop - 6) / 40, 0.15, 1)
 }
 
+/**
+ * Ni hacia arriba se sube de golpe. Se asciende por escalones: de la segunda a
+ * una primera modesta, de ahí a una liga grande. Pasar de una liga menor a la
+ * élite en un solo verano existe, pero es la excepción.
+ */
+function stepUpFactor(club: Club, roots: Roots): number {
+  const rise = getLeague(club.leagueId).strength - roots.currentStrength
+  if (rise <= 12) return 1
+  return clamp(1 - (rise - 12) / 30, 0.08, 1)
+}
+
 function offerWeight(club: Club, target: number, ambition: number, roots: Roots): number {
   const diff = club.prestige - target
   // Los clubes por debajo del nivel del jugador pierden interés para él;
@@ -79,7 +90,8 @@ function offerWeight(club: Club, target: number, ambition: number, roots: Roots)
     Math.max(0.02, closeness) *
     (0.6 + getLeague(club.leagueId).strength / 160) *
     geographyFactor(club, roots) *
-    stepDownFactor(club, roots)
+    stepDownFactor(club, roots) *
+    stepUpFactor(club, roots)
   )
 }
 

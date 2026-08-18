@@ -154,6 +154,8 @@ export interface SeasonRecord {
   national: NationalSeason
   ovrStart: number
   ovrEnd: number
+  /** Puntos de media que sumaron las decisiones del verano previo. */
+  summerDelta: number
   marketValue: number
   wage: number
   /** Momentos narrados de la temporada. */
@@ -335,4 +337,9 @@ export interface SeasonModifiers {
   injuryRisk: number
   /** Bonus a la nota media. */
   rating: number
+  /**
+   * Puntos de media que suman las decisiones de este verano. Cada evento aporta
+   * poco; lo que ve el jugador al final es el total acumulado, un solo número.
+   */
+  ovrDelta: number
 }

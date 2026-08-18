@@ -1,7 +1,7 @@
 import { CLUBS, getClub, getLeague } from '../data/clubs'
 import { getNation } from '../data/nations'
 import { Rng, clamp } from './rng'
-import { adjustOvr, convertPosition, marketValueOf, ovrOf, wageFor } from './player'
+import { convertPosition, marketValueOf, ovrOf, wageFor } from './player'
 import { academyOffers, generateLoanOffers, generateOffers } from './transfers'
 import type { Offer } from './transfers'
 import type {
@@ -93,8 +93,8 @@ const POSITION_FOCUS: Record<string, AttributeKey[]> = {
 
 /** Apuestas del plan de pretemporada: cuánto se gana, cuánto se arriesga y con qué probabilidad. */
 const TRAINING_PLANS = [
-  { id: 'hard', up: 3, down: -2, odds: 0.6, injuryRisk: 1.18, fitness: -3, tone: 'risky' },
-  { id: 'normal', up: 2, down: 0, odds: 0.75, injuryRisk: 1, fitness: 0, tone: 'safe' },
+  { id: 'hard', up: 2, down: -2, odds: 0.6, injuryRisk: 1.18, fitness: -3, tone: 'risky' },
+  { id: 'normal', up: 1, down: 0, odds: 0.75, injuryRisk: 1, fitness: 0, tone: 'safe' },
   { id: 'rest', up: 1, down: 0, odds: 1, injuryRisk: 0.8, fitness: 7, tone: 'safe' },
 ] as const
 
@@ -364,15 +364,13 @@ const EVENTS: EventDef[] = [
       })),
     }),
     apply: (ctx, optionId, _payload, rng) => {
-      const plan = TRAINING_PLANS.find((p) => p.id === optionId) ?? TRAINING_PLANS[1]
-      const p = ctx.state.player
-      // El puesto decide en qué se trabaja; el jugador sólo decide cuánto aprieta.
+      const plan = TRAINING_PLANS.find((t) => t.id === optionId) ?? TRAINING_PLANS[1]
       ctx.state.modifiers.injuryRisk *= plan.injuryRisk
       if (plan.fitness) adjust(ctx.state, { fitness: plan.fitness })
 
       const won = rng.chance(plan.odds)
       const delta = won ? plan.up : plan.down
-      adjustOvr(p, delta)
+      ctx.state.modifiers.ovrDelta += delta
       return delta >= 0
         ? x('event.training.doneUp', { delta })
         : x('event.training.doneDown', { delta: Math.abs(delta) })

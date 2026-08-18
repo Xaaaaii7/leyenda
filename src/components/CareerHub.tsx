@@ -4,7 +4,7 @@ import { currentOvr, seasonLabel } from '../engine/career'
 import { formLabel } from '../engine/player'
 import { ATTRIBUTE_KEYS } from '../engine/types'
 import type { CareerState, Step, Trophy } from '../engine/types'
-import { attrKey, money } from '../format'
+import { attrKey, money, signed } from '../format'
 import { Card, Chip, Meter, Stat } from './Bits'
 import { DecisionCard, NewsCard, SeasonSummary } from './StepCard'
 import { CareerGrid } from './CareerGrid'
@@ -48,6 +48,11 @@ export function CareerHub({ state, step, onChoose, onAdvance, onAutoplay, onFini
                 <Chip variant="gold">{t('hub.onLoan', { club: club?.name ?? '' })}</Chip>
               ) : null}
               {player.captain ? <Chip variant="gold">{t('hub.captain')}</Chip> : null}
+              {state.modifiers.ovrDelta !== 0 ? (
+                <Chip variant={state.modifiers.ovrDelta > 0 ? 'accent' : 'gold'}>
+                  {t('hub.summerSoFar', { delta: signed(state.modifiers.ovrDelta) })}
+                </Chip>
+              ) : null}
             </div>
           </div>
           <div className="head-totals">

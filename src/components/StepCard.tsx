@@ -2,7 +2,7 @@ import { useI18n } from '../i18n'
 import { getClub, getLeague } from '../data/clubs'
 import { tournamentTxt } from '../engine/national'
 import type { Decision, SeasonRecord, Txt } from '../engine/types'
-import { money, ordinal } from '../format'
+import { money, ordinal, signed } from '../format'
 import { Card, Stat } from './Bits'
 
 export function DecisionCard({
@@ -90,6 +90,9 @@ export function SeasonSummary({
       <div className="row small muted" style={{ marginTop: 6, gap: 14 }}>
         <span>{t('season.role', { role: t(`role.${record.role}`) })}</span>
         <span>{t('season.ovrChange', { from: record.ovrStart, to: record.ovrEnd })}</span>
+        {record.summerDelta !== 0 ? (
+          <span>{t('season.summer', { delta: signed(record.summerDelta) })}</span>
+        ) : null}
         <span>{t('stat.leaguePosition')}: {ordinal(record.leaguePosition, locale)}</span>
       </div>
 

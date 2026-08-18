@@ -48,3 +48,9 @@ export function meterColor(value: number): string {
   if (value >= 45) return '#f3c552'
   return '#ff6b6b'
 }
+
+/** "+3" / "−2" / "—": el acumulado del verano se lee de un vistazo. */
+export function signed(value: number): string {
+  if (value === 0) return '—'
+  return value > 0 ? `+${value}` : `−${Math.abs(value)}`
+}
