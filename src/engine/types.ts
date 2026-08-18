@@ -189,6 +189,12 @@ export interface PlayerState {
   clubId: string
   /** Club dueño del pase cuando está cedido. */
   parentClubId?: string
+  /**
+   * Índice de temporada en el que la cesión termina. Sin esto la vuelta se
+   * ejecutaba en el mismo verano en que se acordaba, así que el jugador volvía
+   * a su club antes de jugar un solo partido cedido.
+   */
+  loanReturnAt?: number
   contractYears: number
   /** Salario anual en millones. */
   wage: number
@@ -327,6 +333,4 @@ export interface SeasonModifiers {
   injuryRisk: number
   /** Bonus a la nota media. */
   rating: number
-  /** Atributos a los que apunta el entrenamiento de este año. */
-  trainingFocus: AttributeKey[]
 }

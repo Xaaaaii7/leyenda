@@ -141,11 +141,14 @@ export function generateLoanOffers(player: PlayerState, ovr: number, rng: Rng): 
     (c) => c.id !== player.clubId && c.prestige <= target && c.prestige >= target - 22,
   )
   if (pool.length === 0) return []
-  // Una cesión busca minutos cerca de casa, no una aventura al otro hemisferio.
+  // Una cesión busca minutos cerca de casa. El peso geográfico va al cubo porque
+  // el vivero de clubes modestos es enorme y casi todo él extranjero: sin elevarlo,
+  // la suma de cientos de ligas lejanas se come a los quince clubes de tu país y
+  // un juvenil del Real Madrid acaba cedido en Sudáfrica.
   const picks: Club[] = []
   for (let i = 0; i < 2 && picks.length < 2; i++) {
     const c = rng.weighted(pool, (x) =>
-      picks.some((p) => p.id === x.id) ? 0 : geographyFactor(x, roots),
+      picks.some((p) => p.id === x.id) ? 0 : Math.pow(geographyFactor(x, roots), 3),
     )
     if (!picks.some((p) => p.id === c.id)) picks.push(c)
   }

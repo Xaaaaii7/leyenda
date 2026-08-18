@@ -242,10 +242,6 @@ export const en: Catalog = {
   'injury.acl': 'Cruciate ligament rupture',
   'injury.weeks': '{weeks} weeks',
 
-  'training.tec': 'Technique: dribbling and passing',
-  'training.fin': 'Finishing: shooting',
-  'training.ath': 'Athleticism: pace and physique',
-  'training.def': 'Defensive work',
 
   'offer.label': '{club} · {league}',
 
@@ -311,12 +307,18 @@ export const en: Catalog = {
   'event.goldenExit.doneNo': 'You reject the contract and keep competing at the top.',
 
   'event.training.title': 'Pre-season plan',
+  'event.training.hard': 'Double the sessions',
+  'event.training.normal': 'Normal workload',
+  'event.training.rest': 'Prioritise rest and prevention',
+  'event.training.oddsRisk': '+{up} rating {upPct}% · −{down} {downPct}% · higher injury risk',
+  'event.training.oddsSafe': '+{up} rating {upPct}% of the time',
+  'event.training.oddsSure': '+{up} rating guaranteed · fewer injuries',
+  'event.training.doneUp': 'The summer pays off: +{delta} rating.',
+  'event.training.doneDown': 'You overcook it and turn up burnt out: −{delta} rating.',
   'event.training.textYoung':
     'The fitness coach lets you choose what to hammer this summer. At your age every summer counts double.',
   'event.training.textOld':
     'The fitness coach lets you choose what to hammer this summer. There is no time left to work on everything.',
-  'event.training.done': 'A summer built around {focus}.',
-  'event.training.doneGeneric': 'You train in general terms.',
 
   'event.nutrition.title': 'Off the pitch',
   'event.nutrition.text':

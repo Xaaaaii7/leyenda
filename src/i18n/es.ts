@@ -242,10 +242,6 @@ export const es: Catalog = {
   'injury.acl': 'Rotura de ligamento cruzado',
   'injury.weeks': '{weeks} semanas',
 
-  'training.tec': 'Técnica: regate y pase',
-  'training.fin': 'Definición: tiro',
-  'training.ath': 'Atletismo: ritmo y físico',
-  'training.def': 'Trabajo defensivo',
 
   'offer.label': '{club} · {league}',
 
@@ -311,12 +307,18 @@ export const es: Catalog = {
   'event.goldenExit.doneNo': 'Rechazas el contrato y sigues compitiendo al máximo nivel.',
 
   'event.training.title': 'Plan de pretemporada',
+  'event.training.hard': 'Doblar sesiones',
+  'event.training.normal': 'Carga de trabajo normal',
+  'event.training.rest': 'Priorizar descanso y prevención',
+  'event.training.oddsRisk': '+{up} de media el {upPct}% · −{down} el {downPct}% · más riesgo de lesión',
+  'event.training.oddsSafe': '+{up} de media el {upPct}% de las veces',
+  'event.training.oddsSure': '+{up} de media seguro · menos lesiones',
+  'event.training.doneUp': 'El verano sale bien: +{delta} de media.',
+  'event.training.doneDown': 'Te pasas de vueltas y llegas fundido: −{delta} de media.',
   'event.training.textYoung':
     'El preparador te deja elegir en qué vas a machacar este verano. A tu edad, cada verano cuenta el doble.',
   'event.training.textOld':
     'El preparador te deja elegir en qué vas a machacar este verano. Ya no hay tiempo para trabajarlo todo.',
-  'event.training.done': 'Verano centrado en {focus}.',
-  'event.training.doneGeneric': 'Entrenas de forma genérica.',
 
   'event.nutrition.title': 'Fuera del campo',
   'event.nutrition.text':

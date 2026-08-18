@@ -1,7 +1,7 @@
 import { CLUBS, getClub, getLeague } from '../data/clubs'
 import { getNation } from '../data/nations'
 import { Rng, clamp } from './rng'
-import { convertPosition, marketValueOf, ovrOf, wageFor } from './player'
+import { adjustOvr, convertPosition, marketValueOf, ovrOf, wageFor } from './player'
 import { academyOffers, generateLoanOffers, generateOffers } from './transfers'
 import type { Offer } from './transfers'
 import type {
@@ -62,8 +62,12 @@ export function moveTo(state: CareerState, offer: Offer) {
   if (offer.loan) {
     p.parentClubId = p.parentClubId ?? p.clubId
     p.clubId = offer.clubId
+    // La cesión se acuerda en la post-temporada de `seasonIndex`; la temporada
+    // que se jugará cedido es la siguiente, y sólo al acabarla se vuelve.
+    p.loanReturnAt = state.seasonIndex + 1
   } else {
     p.parentClubId = undefined
+    p.loanReturnAt = undefined
     p.clubId = offer.clubId
     p.contractYears = offer.years
     p.wage = offer.wage
@@ -75,12 +79,24 @@ export function moveTo(state: CareerState, offer: Offer) {
   p.marketValue = marketValueOf(p, getLeague(club.leagueId).strength)
 }
 
-const ATTR_GROUPS: { id: string; keys: AttributeKey[] }[] = [
-  { id: 'tec', keys: ['dribbling', 'passing'] },
-  { id: 'fin', keys: ['shooting'] },
-  { id: 'ath', keys: ['pace', 'physical'] },
-  { id: 'def', keys: ['defending'] },
-]
+/**
+ * En qué trabaja cada puesto. Antes esto era un menú que elegía el jugador, lo
+ * que además ofrecía «Definición: tiro» a un portero; ahora se deduce de la
+ * posición y la elección visible pasa a ser cuánto se aprieta, no en qué.
+ */
+const POSITION_FOCUS: Record<string, AttributeKey[]> = {
+  GK: ['defending', 'physical'],
+  DF: ['defending', 'physical'],
+  MF: ['passing', 'dribbling'],
+  FW: ['shooting', 'dribbling'],
+}
+
+/** Apuestas del plan de pretemporada: cuánto se gana, cuánto se arriesga y con qué probabilidad. */
+const TRAINING_PLANS = [
+  { id: 'hard', up: 3, down: -2, odds: 0.6, injuryRisk: 1.18, fitness: -3, tone: 'risky' },
+  { id: 'normal', up: 2, down: 0, odds: 0.75, injuryRisk: 1, fitness: 0, tone: 'safe' },
+  { id: 'rest', up: 1, down: 0, odds: 1, injuryRisk: 0.8, fitness: 7, tone: 'safe' },
+] as const
 
 const round2 = (v: number) => Math.round(v * 100) / 100
 
@@ -322,26 +338,44 @@ const EVENTS: EventDef[] = [
     key: 'training',
     stage: 'preseason',
     once: false,
-    weight: 100,
-    when: () => true,
-    build: (ctx, rng) => {
-      const groups = rng.shuffle(ATTR_GROUPS).slice(0, 3)
-      return {
-        title: x('event.training.title'),
-        text: x(ctx.state.player.age <= 21 ? 'event.training.textYoung' : 'event.training.textOld'),
-        options: groups.map((g) => ({
-          id: g.id,
-          label: x(`training.${g.id}`),
-          tone: 'safe' as DecisionOption['tone'],
-        })),
-      }
-    },
-    apply: (ctx, optionId) => {
-      const group = ATTR_GROUPS.find((g) => g.id === optionId)
-      if (!group) return x('event.training.doneGeneric')
-      ctx.state.modifiers.trainingFocus = group.keys
-      ctx.state.modifiers.growth += 0.08
-      return x('event.training.done', { focus: x(`training.${group.id}`) })
+    weight: 60,
+    // Sólo se ofrece si de verdad queda margen de mejora: así el "+3" que promete
+    // la opción es siempre el "+3" que acaba dando.
+    when: (ctx) => ctx.state.player.potential - ctx.ovr >= 3,
+    build: (ctx) => ({
+      title: x('event.training.title'),
+      text: x(ctx.state.player.age <= 21 ? 'event.training.textYoung' : 'event.training.textOld'),
+      options: TRAINING_PLANS.map((plan) => ({
+        id: plan.id,
+        label: x(`event.training.${plan.id}`),
+        // La apuesta va escrita: el jugador ve exactamente qué se juega.
+        hint:
+          plan.down < 0
+            ? x('event.training.oddsRisk', {
+                up: plan.up,
+                upPct: Math.round(plan.odds * 100),
+                down: Math.abs(plan.down),
+                downPct: Math.round((1 - plan.odds) * 100),
+              })
+            : plan.odds < 1
+              ? x('event.training.oddsSafe', { up: plan.up, upPct: Math.round(plan.odds * 100) })
+              : x('event.training.oddsSure', { up: plan.up }),
+        tone: plan.tone as DecisionOption['tone'],
+      })),
+    }),
+    apply: (ctx, optionId, _payload, rng) => {
+      const plan = TRAINING_PLANS.find((p) => p.id === optionId) ?? TRAINING_PLANS[1]
+      const p = ctx.state.player
+      // El puesto decide en qué se trabaja; el jugador sólo decide cuánto aprieta.
+      ctx.state.modifiers.injuryRisk *= plan.injuryRisk
+      if (plan.fitness) adjust(ctx.state, { fitness: plan.fitness })
+
+      const won = rng.chance(plan.odds)
+      const delta = won ? plan.up : plan.down
+      adjustOvr(p, delta)
+      return delta >= 0
+        ? x('event.training.doneUp', { delta })
+        : x('event.training.doneDown', { delta: Math.abs(delta) })
     },
   },
   {
@@ -794,4 +828,4 @@ export function refreshMarket(state: CareerState, last: SeasonRecord | undefined
       : []
 }
 
-export { EVENTS, ATTR_GROUPS }
+export { EVENTS, POSITION_FOCUS, TRAINING_PLANS }

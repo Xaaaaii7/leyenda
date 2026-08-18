@@ -242,10 +242,6 @@ export const ca: Catalog = {
   'injury.acl': 'Trencament de lligament croat',
   'injury.weeks': '{weeks} setmanes',
 
-  'training.tec': 'Tècnica: regat i passada',
-  'training.fin': 'Definició: xut',
-  'training.ath': 'Atletisme: ritme i físic',
-  'training.def': 'Feina defensiva',
 
   'offer.label': '{club} · {league}',
 
@@ -311,12 +307,18 @@ export const ca: Catalog = {
   'event.goldenExit.doneNo': 'Rebutges el contracte i segueixes competint al màxim nivell.',
 
   'event.training.title': 'Pla de pretemporada',
+  'event.training.hard': 'Doblar sessions',
+  'event.training.normal': 'Càrrega de treball normal',
+  'event.training.rest': 'Prioritzar descans i prevenció',
+  'event.training.oddsRisk': '+{up} de mitjana el {upPct}% · −{down} el {downPct}% · més risc de lesió',
+  'event.training.oddsSafe': '+{up} de mitjana el {upPct}% de les vegades',
+  'event.training.oddsSure': '+{up} de mitjana segur · menys lesions',
+  'event.training.doneUp': 'L’estiu surt bé: +{delta} de mitjana.',
+  'event.training.doneDown': 'Et passes de voltes i arribes fos: −{delta} de mitjana.',
   'event.training.textYoung':
     'El preparador et deixa triar en què et clavaràs aquest estiu. A la teva edat, cada estiu compta el doble.',
   'event.training.textOld':
     'El preparador et deixa triar en què et clavaràs aquest estiu. Ja no hi ha temps per treballar-ho tot.',
-  'event.training.done': 'Estiu centrat en {focus}.',
-  'event.training.doneGeneric': 'Entrenes de manera genèrica.',
 
   'event.nutrition.title': 'Fora del camp',
   'event.nutrition.text':

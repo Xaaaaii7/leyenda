@@ -8,7 +8,7 @@ import {
   simulateAwards, simulateLeaguePosition, simulateStats, simulateTrophies,
 } from './season'
 import { simulateNationalSeason, tournamentTxt } from './national'
-import { EVENT_BY_KEY, buildDecision, eventsFor, refreshMarket } from './events'
+import { EVENT_BY_KEY, POSITION_FOCUS, buildDecision, eventsFor, refreshMarket } from './events'
 import type { EventCtx } from './events'
 import { computeLegacy } from './legacy'
 import type {
@@ -42,14 +42,14 @@ const EVENT_ORDER: Record<string, number> = {
 
 /** Eventos que aparecen siempre que se cumplan sus condiciones. */
 const ALWAYS = new Set([
-  'academy', 'transfer', 'loan', 'renewal', 'retirementCall', 'rehab', 'training', 'youthLeap',
+  'academy', 'transfer', 'loan', 'renewal', 'retirementCall', 'rehab', 'youthLeap',
 ])
 
 export const MAX_SEASONS = 24
 export const RETIREMENT_HARD_AGE = 41
 
 function emptyModifiers(): SeasonModifiers {
-  return { minutes: 0, growth: 1, injuryRisk: 1, rating: 0, trainingFocus: [] }
+  return { minutes: 0, growth: 1, injuryRisk: 1, rating: 0 }
 }
 
 function emptyTotals(): CareerTotals {
@@ -352,7 +352,7 @@ function runSeason(state: CareerState, rng: Rng): SeasonRecord {
       clubPrestige: club.prestige,
       leagueStrength: league.strength,
       growthMult: mods.growth * adapt.growth,
-      trainingFocus: mods.trainingFocus,
+      trainingFocus: POSITION_FOCUS[p.identity.position] ?? [],
       injuryWeeks,
       seasonRating: stats.rating,
     },
@@ -485,18 +485,20 @@ function buildHighlights(
 function endOfYear(state: CareerState, rng: Rng): boolean {
   const p = state.player
 
-  // Vuelta de cesión.
-  if (p.parentClubId) {
+  p.seasonsAtClub += 1
+
+  // Vuelta de cesión, sólo cuando la temporada cedida ya se ha jugado.
+  if (p.parentClubId && state.seasonIndex >= (p.loanReturnAt ?? 0)) {
     p.clubId = p.parentClubId
     p.parentClubId = undefined
+    p.loanReturnAt = undefined
+    // Vuelve como quien llega nuevo: le toca readaptarse.
     p.seasonsAtClub = 0
     state.news.push({
       title: { key: 'news.loanReturn.title' },
       text: { key: 'news.loanReturn.text', params: { club: getClub(p.clubId).name } },
     })
   }
-
-  p.seasonsAtClub += 1
   p.age += 1
   state.year += 1
   state.seasonIndex += 1

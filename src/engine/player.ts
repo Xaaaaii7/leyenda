@@ -257,6 +257,27 @@ export function wageFor(ovr: number, clubPrestige: number, age: number): number 
 }
 
 /**
+ * Mueve la media del jugador `delta` puntos, repartiéndolo entre sus atributos
+ * según el perfil de su posición. Es lo que permite que un evento prometa
+ * "+4 de media" y que el número que sale sea exactamente ese.
+ */
+export function adjustOvr(player: PlayerState, delta: number): void {
+  if (delta === 0) return
+  const { position } = player.identity
+  // Ni el mejor verano de tu vida te sube por encima de tu techo: si no se
+  // recortara, un evento repetible regalaría media infinita y reventaría la curva.
+  if (delta > 0) {
+    const headroom = player.potential - ovrOf(player.attrs, position)
+    delta = Math.min(delta, Math.max(0, headroom))
+    if (delta === 0) return
+  }
+  const bias = GROWTH_BIAS[position]
+  const shape: Record<string, number> = {}
+  for (const k of ATTRIBUTE_KEYS) shape[k] = delta > 0 ? bias[k] : DECLINE_BIAS[k]
+  applyShaped(player, shape, delta, position)
+}
+
+/**
  * Reconversión de posición. Un delantero que se retrasa a la medular no pierde
  * diez puntos de media de golpe: redistribuye trabajo hacia lo que pide su nuevo
  * puesto. Queda un par de puntos por debajo, no hundido.

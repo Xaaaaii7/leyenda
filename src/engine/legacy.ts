@@ -87,14 +87,11 @@ export function isDreamAchieved(state: CareerState): boolean {
       return t.trophies.some((x) => x.kind === 'worldcup')
     case 'legend': {
       // Leyenda de club: al menos 8 temporadas y 250 partidos en un mismo club.
+      // Las cesiones cuentan: esos partidos se jugaron con esa camiseta.
       const byClub = new Map<string, number>()
-      for (const s of state.history) {
-        if (s.onLoan) continue
-        byClub.set(s.clubId, (byClub.get(s.clubId) ?? 0) + s.stats.apps)
-      }
       const seasonsByClub = new Map<string, number>()
       for (const s of state.history) {
-        if (s.onLoan) continue
+        byClub.set(s.clubId, (byClub.get(s.clubId) ?? 0) + s.stats.apps)
         seasonsByClub.set(s.clubId, (seasonsByClub.get(s.clubId) ?? 0) + 1)
       }
       for (const [clubId, apps] of byClub) {
